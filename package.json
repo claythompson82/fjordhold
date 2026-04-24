@@ -1,0 +1,32 @@
+{
+  "name": "fjordhold",
+  "version": "0.1.0",
+  "private": false,
+  "description": "A stylish open-source Viking-inspired top-down base-builder and raid-defense game by ObsidianFire32.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "keywords": [
+    "phaser",
+    "typescript",
+    "vite",
+    "game",
+    "base-builder",
+    "survival-game",
+    "viking-inspired",
+    "ai-assisted"
+  ],
+  "author": "ObsidianFire32",
+  "license": "MIT",
+  "dependencies": {
+    "phaser": "^3.90.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0"
+  }
+}
