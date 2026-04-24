@@ -19,7 +19,24 @@ The goal is not to clone any existing game. Fjordhold draws from broad public-do
 
 ## Current Status
 
-Early pre-production / prototype setup.
+Early playable scaffold.
+
+You can now run a first browser build with:
+
+```bash
+npm install
+npm run dev
+```
+
+The current build includes:
+
+- Phaser 3 + TypeScript + Vite scaffold
+- boot / preload / world / UI scenes
+- a styled Frostpine Fjord placeholder map
+- a controllable placeholder Viking character
+- camera follow
+- initial HUD
+- placeholder asset folders
 
 Planned first public release:
 
@@ -40,23 +57,50 @@ Target features:
 
 ## Tech Stack
 
-Planned stack:
-
 - Phaser 3
 - TypeScript
 - Vite
 - browser-first development
 - Windows-friendly packaged build later
 
+## Local Development
+
+Requirements:
+
+- Node.js 20+
+- npm
+
+Run locally:
+
+```bash
+npm install
+npm run dev
+```
+
+Build for production:
+
+```bash
+npm run build
+```
+
+Preview production build:
+
+```bash
+npm run preview
+```
+
 ## Project Structure
 
 ```text
 src/
+  main.ts
+  styles.css
   game/
     scenes/
-    systems/
-    entities/
-    data/
+      BootScene.ts
+      PreloadScene.ts
+      WorldScene.ts
+      UIScene.ts
 public/
   assets/
     characters/
