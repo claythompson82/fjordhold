@@ -10,10 +10,17 @@ type ResourceVisual = {
   kind: 'tree' | 'rock' | 'ore';
 };
 
+type MovementKeys = {
+  W: Phaser.Input.Keyboard.Key;
+  A: Phaser.Input.Keyboard.Key;
+  S: Phaser.Input.Keyboard.Key;
+  D: Phaser.Input.Keyboard.Key;
+};
+
 export class WorldScene extends Phaser.Scene {
   private player!: Phaser.GameObjects.Container;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-  private keys!: Record<'w' | 'a' | 's' | 'd', Phaser.Input.Keyboard.Key>;
+  private keys!: MovementKeys;
 
   constructor() {
     super('WorldScene');
@@ -30,7 +37,7 @@ export class WorldScene extends Phaser.Scene {
     this.cameras.main.setZoom(1.15);
 
     this.cursors = this.input.keyboard!.createCursorKeys();
-    this.keys = this.input.keyboard!.addKeys('W,A,S,D') as Record<'w' | 'a' | 's' | 'd', Phaser.Input.Keyboard.Key>;
+    this.keys = this.input.keyboard!.addKeys('W,A,S,D') as MovementKeys;
   }
 
   update(_: number, delta: number): void {
@@ -139,17 +146,20 @@ export class WorldScene extends Phaser.Scene {
   private updatePlayerMovement(delta: number): void {
     const direction = new Phaser.Math.Vector2(0, 0);
 
-    if (this.cursors.left?.isDown || this.keys.a.isDown) direction.x -= 1;
-    if (this.cursors.right?.isDown || this.keys.d.isDown) direction.x += 1;
-    if (this.cursors.up?.isDown || this.keys.w.isDown) direction.y -= 1;
-    if (this.cursors.down?.isDown || this.keys.s.isDown) direction.y += 1;
+    if (this.cursors.left?.isDown || this.keys.A.isDown) direction.x -= 1;
+    if (this.cursors.right?.isDown || this.keys.D.isDown) direction.x += 1;
+    if (this.cursors.up?.isDown || this.keys.W.isDown) direction.y -= 1;
+    if (this.cursors.down?.isDown || this.keys.S.isDown) direction.y += 1;
 
     if (direction.lengthSq() > 0) {
       direction.normalize();
       const distance = PLAYER_SPEED * (delta / 1000);
       this.player.x = Phaser.Math.Clamp(this.player.x + direction.x * distance, 40, WORLD_WIDTH - 40);
       this.player.y = Phaser.Math.Clamp(this.player.y + direction.y * distance, 40, WORLD_HEIGHT - 40);
-      this.player.setScale(direction.x < 0 ? -1 : 1, 1);
+
+      if (direction.x !== 0) {
+        this.player.setScale(direction.x < 0 ? -1 : 1, 1);
+      }
     }
   }
 }
