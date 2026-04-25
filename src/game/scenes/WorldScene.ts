@@ -4,9 +4,11 @@ const WORLD_WIDTH = 2400;
 const WORLD_HEIGHT = 1600;
 const PLAYER_SPEED = 220;
 const HARVEST_RANGE = 105;
+const BUILD_GRID_SIZE = 64;
 
 type ResourceKind = 'tree' | 'rock' | 'ore';
 type InventoryItem = 'wood' | 'stone' | 'ironOre' | 'resin';
+type BuildPieceId = 'woodFloor' | 'woodWall' | 'standingTorch' | 'spikeWall';
 
 type ResourceVisual = {
   x: number;
@@ -24,6 +26,23 @@ type ResourceNode = ResourceVisual & {
 };
 
 type InventoryCounts = Record<InventoryItem, number>;
+type ResourceCost = Partial<InventoryCounts>;
+
+type BuildPieceDefinition = {
+  id: BuildPieceId;
+  label: string;
+  cost: ResourceCost;
+  category: 'floor' | 'wall' | 'light' | 'defense';
+  hotkey: '1' | '2' | '3' | '4';
+};
+
+type PlacedBuildPiece = {
+  id: string;
+  pieceId: BuildPieceId;
+  gridX: number;
+  gridY: number;
+  container: Phaser.GameObjects.Container;
+};
 
 type InputKeys = {
   W: Phaser.Input.Keyboard.Key;
@@ -31,12 +50,49 @@ type InputKeys = {
   S: Phaser.Input.Keyboard.Key;
   D: Phaser.Input.Keyboard.Key;
   E: Phaser.Input.Keyboard.Key;
+  B: Phaser.Input.Keyboard.Key;
+  ESC: Phaser.Input.Keyboard.Key;
+  ONE: Phaser.Input.Keyboard.Key;
+  TWO: Phaser.Input.Keyboard.Key;
+  THREE: Phaser.Input.Keyboard.Key;
+  FOUR: Phaser.Input.Keyboard.Key;
 };
 
 const RESOURCE_DEFINITIONS: Record<ResourceKind, { health: number; item: InventoryItem; label: string }> = {
   tree: { health: 3, item: 'wood', label: 'Pine Tree' },
   rock: { health: 3, item: 'stone', label: 'Stone Boulder' },
   ore: { health: 4, item: 'ironOre', label: 'Iron Ore' }
+};
+
+const BUILD_PIECES: Record<BuildPieceId, BuildPieceDefinition> = {
+  woodFloor: {
+    id: 'woodFloor',
+    label: 'Wood Floor',
+    cost: { wood: 2 },
+    category: 'floor',
+    hotkey: '1'
+  },
+  woodWall: {
+    id: 'woodWall',
+    label: 'Wood Wall',
+    cost: { wood: 4 },
+    category: 'wall',
+    hotkey: '2'
+  },
+  standingTorch: {
+    id: 'standingTorch',
+    label: 'Standing Torch',
+    cost: { wood: 2, resin: 1 },
+    category: 'light',
+    hotkey: '3'
+  },
+  spikeWall: {
+    id: 'spikeWall',
+    label: 'Spike Wall',
+    cost: { wood: 5, stone: 1 },
+    category: 'defense',
+    hotkey: '4'
+  }
 };
 
 export class WorldScene extends Phaser.Scene {
@@ -51,6 +107,11 @@ export class WorldScene extends Phaser.Scene {
     resin: 0
   };
   private interactionHint!: Phaser.GameObjects.Text;
+  private buildMode = false;
+  private selectedBuildPiece: BuildPieceId = 'woodFloor';
+  private buildGhost!: Phaser.GameObjects.Container;
+  private buildGhostLabel!: Phaser.GameObjects.Text;
+  private placedPieces: PlacedBuildPiece[] = [];
 
   constructor() {
     super('WorldScene');
@@ -63,25 +124,30 @@ export class WorldScene extends Phaser.Scene {
     this.createFrostpineWorld();
     this.player = this.createPlayer(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
     this.interactionHint = this.createInteractionHint();
+    this.buildGhost = this.createBuildGhost();
+    this.buildGhostLabel = this.createBuildGhostLabel();
 
     this.cameras.main.startFollow(this.player, true, 0.12, 0.12);
     this.cameras.main.setZoom(1.15);
 
     this.cursors = this.input.keyboard!.createCursorKeys();
-    this.keys = this.input.keyboard!.addKeys('W,A,S,D,E') as InputKeys;
+    this.keys = this.input.keyboard!.addKeys('W,A,S,D,E,B,ESC,ONE,TWO,THREE,FOUR') as InputKeys;
 
-    this.input.on('pointerdown', () => this.harvestNearestResource());
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => this.handlePointerDown(pointer));
     this.emitInventoryChanged();
+    this.emitBuildChanged();
   }
 
   update(_: number, delta: number): void {
     this.updatePlayerMovement(delta);
+    this.updateBuildInput();
 
-    if (Phaser.Input.Keyboard.JustDown(this.keys.E)) {
+    if (Phaser.Input.Keyboard.JustDown(this.keys.E) && !this.buildMode) {
       this.harvestNearestResource();
     }
 
     this.updateInteractionHint();
+    this.updateBuildGhost();
   }
 
   private createFrostpineWorld(): void {
@@ -205,6 +271,22 @@ export class WorldScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(100).setVisible(false);
   }
 
+  private createBuildGhost(): Phaser.GameObjects.Container {
+    const ghost = this.add.container(0, 0).setDepth(200).setVisible(false);
+    ghost.add(this.add.rectangle(0, 0, BUILD_GRID_SIZE, BUILD_GRID_SIZE, 0x42f59b, 0.18).setStrokeStyle(3, 0x42f59b, 0.9));
+    return ghost;
+  }
+
+  private createBuildGhostLabel(): Phaser.GameObjects.Text {
+    return this.add.text(0, 0, '', {
+      fontFamily: 'monospace',
+      fontSize: '12px',
+      color: '#f4d18a',
+      backgroundColor: '#111820dd',
+      padding: { x: 8, y: 4 }
+    }).setOrigin(0.5).setDepth(210).setVisible(false);
+  }
+
   private updatePlayerMovement(delta: number): void {
     const direction = new Phaser.Math.Vector2(0, 0);
 
@@ -223,6 +305,50 @@ export class WorldScene extends Phaser.Scene {
         this.player.setScale(direction.x < 0 ? -1 : 1, 1);
       }
     }
+  }
+
+  private updateBuildInput(): void {
+    if (Phaser.Input.Keyboard.JustDown(this.keys.B)) {
+      this.buildMode = !this.buildMode;
+      this.showFloatingText(this.player.x, this.player.y - 72, this.buildMode ? 'Build mode' : 'Gather mode', this.buildMode ? '#42f59b' : '#b7c8d6');
+      this.emitBuildChanged();
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.keys.ESC) && this.buildMode) {
+      this.buildMode = false;
+      this.emitBuildChanged();
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.keys.ONE)) this.selectBuildPiece('woodFloor');
+    if (Phaser.Input.Keyboard.JustDown(this.keys.TWO)) this.selectBuildPiece('woodWall');
+    if (Phaser.Input.Keyboard.JustDown(this.keys.THREE)) this.selectBuildPiece('standingTorch');
+    if (Phaser.Input.Keyboard.JustDown(this.keys.FOUR)) this.selectBuildPiece('spikeWall');
+  }
+
+  private selectBuildPiece(pieceId: BuildPieceId): void {
+    this.selectedBuildPiece = pieceId;
+    this.emitBuildChanged();
+
+    if (this.buildMode) {
+      this.showFloatingText(this.player.x, this.player.y - 72, BUILD_PIECES[pieceId].label, '#f4d18a');
+    }
+  }
+
+  private handlePointerDown(pointer: Phaser.Input.Pointer): void {
+    if (pointer.rightButtonDown()) {
+      if (this.buildMode) {
+        this.buildMode = false;
+        this.emitBuildChanged();
+      }
+      return;
+    }
+
+    if (this.buildMode) {
+      this.placeSelectedBuildPiece();
+      return;
+    }
+
+    this.harvestNearestResource();
   }
 
   private harvestNearestResource(): void {
@@ -248,6 +374,133 @@ export class WorldScene extends Phaser.Scene {
     if (node.health <= 0) {
       this.destroyResource(node);
     }
+  }
+
+  private placeSelectedBuildPiece(): void {
+    const snapped = this.getSnappedPointerPosition();
+    const piece = BUILD_PIECES[this.selectedBuildPiece];
+    const validation = this.validateBuildPlacement(snapped.x, snapped.y, piece);
+
+    if (!validation.valid) {
+      this.showFloatingText(snapped.x, snapped.y - 46, validation.reason, '#ff7f60');
+      this.cameras.main.shake(80, 0.001);
+      return;
+    }
+
+    this.spendResources(piece.cost);
+    const container = this.createBuildPieceVisual(piece.id, snapped.x, snapped.y, false);
+    const placedPiece: PlacedBuildPiece = {
+      id: `${piece.id}_${snapped.x}_${snapped.y}_${this.placedPieces.length}`,
+      pieceId: piece.id,
+      gridX: snapped.x,
+      gridY: snapped.y,
+      container
+    };
+
+    this.placedPieces.push(placedPiece);
+    this.emitInventoryChanged();
+    this.showFloatingText(snapped.x, snapped.y - 48, `${piece.label} placed`, '#42f59b');
+    this.cameras.main.flash(85, 244, 209, 138, false);
+  }
+
+  private createBuildPieceVisual(pieceId: BuildPieceId, x: number, y: number, ghost: boolean): Phaser.GameObjects.Container {
+    const alpha = ghost ? 0.45 : 1;
+    const container = this.add.container(x, y).setDepth(pieceId === 'woodFloor' ? 4 : y + 10).setAlpha(alpha);
+
+    switch (pieceId) {
+      case 'woodFloor':
+        container.add(this.add.rectangle(0, 0, 60, 60, 0x7a5134, 0.95).setStrokeStyle(2, 0x2d1c13));
+        container.add(this.add.line(0, 0, -24, -8, 24, -8, 0xa06b42, 0.8).setLineWidth(2));
+        container.add(this.add.line(0, 0, -24, 10, 24, 10, 0xa06b42, 0.55).setLineWidth(2));
+        break;
+      case 'woodWall':
+        container.add(this.add.ellipse(0, 20, 58, 18, 0x071018, 0.25));
+        container.add(this.add.rectangle(0, 2, 58, 42, 0x6d4528, 1).setStrokeStyle(3, 0x23160e));
+        container.add(this.add.rectangle(-16, 2, 6, 48, 0xa06b42, 1));
+        container.add(this.add.rectangle(16, 2, 6, 48, 0xa06b42, 1));
+        container.add(this.add.line(0, 0, -24, -8, 24, -8, 0x2d1c13, 1).setLineWidth(3));
+        container.add(this.add.line(0, 0, -24, 10, 24, 10, 0x2d1c13, 0.9).setLineWidth(3));
+        break;
+      case 'standingTorch':
+        container.add(this.add.ellipse(0, 20, 34, 12, 0x071018, 0.24));
+        container.add(this.add.rectangle(0, 8, 8, 42, 0x6d4528, 1));
+        container.add(this.add.circle(0, -16, 22, 0xff9f3d, 0.16));
+        container.add(this.add.circle(0, -16, 9, 0xff9f3d, 0.95));
+        container.add(this.add.triangle(0, -26, 0, 26, 11, 0, 22, 26, 0xffdd7a, 0.95));
+        break;
+      case 'spikeWall':
+        container.add(this.add.ellipse(0, 22, 60, 16, 0x071018, 0.26));
+        for (let i = -2; i <= 2; i += 1) {
+          container.add(this.add.triangle(i * 13, 0, 0, 44, 10, 0, 20, 44, 0x8a5937, 1).setRotation(Phaser.Math.DegToRad(180)));
+        }
+        container.add(this.add.rectangle(0, 14, 62, 9, 0x4b2e1c, 1));
+        break;
+    }
+
+    return container;
+  }
+
+  private updateBuildGhost(): void {
+    if (!this.buildMode) {
+      this.buildGhost.setVisible(false);
+      this.buildGhostLabel.setVisible(false);
+      return;
+    }
+
+    const snapped = this.getSnappedPointerPosition();
+    const piece = BUILD_PIECES[this.selectedBuildPiece];
+    const validation = this.validateBuildPlacement(snapped.x, snapped.y, piece);
+    const color = validation.valid ? 0x42f59b : 0xff543f;
+
+    this.buildGhost.destroy();
+    this.buildGhost = this.add.container(snapped.x, snapped.y).setDepth(200);
+    this.buildGhost.add(this.add.rectangle(0, 0, BUILD_GRID_SIZE, BUILD_GRID_SIZE, color, 0.16).setStrokeStyle(3, color, 0.9));
+    this.buildGhost.add(this.createBuildPieceVisual(piece.id, 0, 0, true).setDepth(201));
+    this.buildGhost.setVisible(true);
+
+    this.buildGhostLabel
+      .setText(`${piece.hotkey}: ${piece.label} • ${this.formatCost(piece.cost)}`)
+      .setPosition(snapped.x, snapped.y - 52)
+      .setVisible(true);
+  }
+
+  private getSnappedPointerPosition(): { x: number; y: number } {
+    const pointer = this.input.activePointer;
+    const x = Math.floor(pointer.worldX / BUILD_GRID_SIZE) * BUILD_GRID_SIZE + BUILD_GRID_SIZE / 2;
+    const y = Math.floor(pointer.worldY / BUILD_GRID_SIZE) * BUILD_GRID_SIZE + BUILD_GRID_SIZE / 2;
+
+    return {
+      x: Phaser.Math.Clamp(x, BUILD_GRID_SIZE / 2, WORLD_WIDTH - BUILD_GRID_SIZE / 2),
+      y: Phaser.Math.Clamp(y, BUILD_GRID_SIZE / 2, WORLD_HEIGHT - BUILD_GRID_SIZE / 2)
+    };
+  }
+
+  private validateBuildPlacement(x: number, y: number, piece: BuildPieceDefinition): { valid: boolean; reason: string } {
+    if (!this.canAfford(piece.cost)) {
+      return { valid: false, reason: 'Need resources' };
+    }
+
+    const occupied = this.placedPieces.some((placed) => placed.gridX === x && placed.gridY === y);
+    if (occupied) {
+      return { valid: false, reason: 'Occupied' };
+    }
+
+    const tooCloseToResource = this.resourceNodes.some((node) => Phaser.Math.Distance.Between(x, y, node.x, node.y) < 54);
+    if (tooCloseToResource) {
+      return { valid: false, reason: 'Blocked' };
+    }
+
+    return { valid: true, reason: 'OK' };
+  }
+
+  private canAfford(cost: ResourceCost): boolean {
+    return Object.entries(cost).every(([item, amount]) => this.inventory[item as InventoryItem] >= (amount ?? 0));
+  }
+
+  private spendResources(cost: ResourceCost): void {
+    Object.entries(cost).forEach(([item, amount]) => {
+      this.inventory[item as InventoryItem] -= amount ?? 0;
+    });
   }
 
   private findNearestResource(): ResourceNode | undefined {
@@ -319,6 +572,11 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private updateInteractionHint(): void {
+    if (this.buildMode) {
+      this.interactionHint.setVisible(false);
+      return;
+    }
+
     const node = this.findNearestResource();
 
     if (!node) {
@@ -334,6 +592,14 @@ export class WorldScene extends Phaser.Scene {
 
   private emitInventoryChanged(): void {
     this.game.events.emit('inventory:changed', { ...this.inventory });
+  }
+
+  private emitBuildChanged(): void {
+    this.game.events.emit('build:changed', {
+      buildMode: this.buildMode,
+      selectedPiece: BUILD_PIECES[this.selectedBuildPiece],
+      buildPieces: Object.values(BUILD_PIECES)
+    });
   }
 
   private showFloatingText(x: number, y: number, message: string, color: string): void {
@@ -362,5 +628,11 @@ export class WorldScene extends Phaser.Scene {
       default:
         return item;
     }
+  }
+
+  private formatCost(cost: ResourceCost): string {
+    return Object.entries(cost)
+      .map(([item, amount]) => `${this.getInventoryLabel(item as InventoryItem)} ${amount}`)
+      .join(', ');
   }
 }
