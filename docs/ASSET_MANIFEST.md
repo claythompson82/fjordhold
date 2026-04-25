@@ -211,6 +211,15 @@ Required building pieces:
 - table
 - stool
 
+
+Stage 2 delivery (Issue #3, Building Kit V1 subset now integrated):
+
+- wood_floor
+- wood_wall_north (represented by `build_wood_wall_64.png` placeholder tile)
+- standing_torch
+- spike_wall
+- thatch_roof_small (represented by `build_thatch_roof_64.png` placeholder tile)
+
 ### 7. Item Icons
 
 | Asset | Size | Status | Notes |
