@@ -43,6 +43,7 @@ type PlacedBuildPiece = {
   gridX: number;
   gridY: number;
   container: Phaser.GameObjects.Container;
+  flame?: Phaser.GameObjects.Triangle;
 };
 
 type InputKeys = {
@@ -134,6 +135,7 @@ export class WorldScene extends Phaser.Scene {
   private selectedBuildPiece: BuildPieceId = 'woodFloor';
   private buildGhost!: Phaser.GameObjects.Container;
   private buildGhostLabel!: Phaser.GameObjects.Text;
+  private buildGhostPulse?: Phaser.GameObjects.Arc;
   private placedPieces: PlacedBuildPiece[] = [];
 
   constructor() {
@@ -432,6 +434,7 @@ export class WorldScene extends Phaser.Scene {
       container
     };
 
+    this.animateBuildPlacement(placedPiece);
     this.placedPieces.push(placedPiece);
     this.emitInventoryChanged();
     this.showFloatingText(snapped.x, snapped.y - 48, `${piece.label} placed`, '#42f59b');
@@ -467,7 +470,7 @@ export class WorldScene extends Phaser.Scene {
         container.add(this.add.rectangle(0, 8, 8, 42, 0x6d4528, 1));
         container.add(this.add.circle(0, -16, 22, 0xff9f3d, 0.16));
         container.add(this.add.circle(0, -16, 9, 0xff9f3d, 0.95));
-        container.add(this.add.triangle(0, -26, 0, 26, 11, 0, 22, 26, 0xffdd7a, 0.95));
+        container.add(this.add.triangle(0, -26, 0, 26, 11, 0, 22, 26, 0xffdd7a, 0.95).setName('torch_flame'));
         break;
       case 'spikeWall':
         container.add(this.add.ellipse(0, 22, 60, 16, 0x071018, 0.26));
@@ -512,12 +515,26 @@ export class WorldScene extends Phaser.Scene {
     this.buildGhost = this.add.container(snapped.x, snapped.y).setDepth(200);
     this.buildGhost.add(this.add.rectangle(0, 0, BUILD_GRID_SIZE, BUILD_GRID_SIZE, color, 0.16).setStrokeStyle(3, color, 0.9));
     this.buildGhost.add(this.createBuildPieceVisual(piece.id, 0, 0, true).setDepth(201));
+    this.buildGhostPulse?.destroy();
+    this.buildGhostPulse = this.add.circle(0, 0, 28, color, validation.valid ? 0.16 : 0.12)
+      .setStrokeStyle(2, color, 0.45)
+      .setName('build_ghost_pulse');
+    this.buildGhost.add(this.buildGhostPulse);
     this.buildGhost.setVisible(true);
 
     this.buildGhostLabel
       .setText(`${piece.hotkey}: ${piece.label} • ${this.formatCost(piece.cost)}`)
       .setPosition(snapped.x, snapped.y - 52)
       .setVisible(true);
+
+    if (validation.valid) {
+      const pulseScale = 1 + ((Math.sin(this.time.now * 0.012) + 1) * 0.18);
+      this.buildGhostPulse.setScale(pulseScale);
+      this.buildGhostPulse.setAlpha(0.14 + ((Math.sin(this.time.now * 0.012) + 1) * 0.04));
+    } else {
+      this.buildGhostPulse.setScale(1);
+      this.buildGhostPulse.setAlpha(0.12);
+    }
   }
 
   private updateInteriorReveal(): void {
@@ -527,6 +544,15 @@ export class WorldScene extends Phaser.Scene {
     roofs.forEach((roof) => {
       const targetAlpha = insideRoof ? 0.18 : 1;
       roof.container.setAlpha(Phaser.Math.Linear(roof.container.alpha, targetAlpha, 0.16));
+    });
+
+    this.placedPieces.forEach((piece) => {
+      if (!piece.flame || piece.pieceId !== 'standingTorch') {
+        return;
+      }
+
+      piece.flame.setScale(0.9 + Math.sin((this.time.now + piece.gridX) * 0.02) * 0.08, 1);
+      piece.flame.setAlpha(0.84 + Math.sin((this.time.now + piece.gridY) * 0.016) * 0.12);
     });
   }
 
@@ -700,5 +726,39 @@ export class WorldScene extends Phaser.Scene {
     return Object.entries(cost)
       .map(([item, amount]) => `${this.getInventoryLabel(item as InventoryItem)} ${amount}`)
       .join(', ');
+  }
+
+  private animateBuildPlacement(piece: PlacedBuildPiece): void {
+    piece.container.setScale(0.86);
+
+    const flame = piece.container.getByName('torch_flame') as Phaser.GameObjects.Triangle | null;
+    if (flame) {
+      piece.flame = flame;
+    }
+
+    this.tweens.add({
+      targets: piece.container,
+      scaleX: 1.05,
+      scaleY: 1.05,
+      duration: 110,
+      ease: 'Back.easeOut',
+      yoyo: true
+    });
+
+    for (let i = 0; i < 9; i += 1) {
+      const ember = this.add.circle(piece.gridX, piece.gridY + 8, Phaser.Math.Between(2, 4), 0xf4d18a, 0.85).setDepth(95);
+      this.tweens.add({
+        targets: ember,
+        x: piece.gridX + Phaser.Math.Between(-40, 40),
+        y: piece.gridY + Phaser.Math.Between(-48, 14),
+        alpha: 0,
+        scale: 0.2,
+        duration: 280 + (i * 18),
+        ease: 'Quad.easeOut',
+        onComplete: () => ember.destroy()
+      });
+    }
+
+    this.cameras.main.shake(75, 0.0012);
   }
 }
