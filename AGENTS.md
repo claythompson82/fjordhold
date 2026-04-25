@@ -36,6 +36,32 @@ Do not introduce a different game engine without documenting the reason in `docs
 8. Do not add large features without updating docs.
 9. Maintain clear file names and predictable folder structure.
 10. Favor juicy, readable gameplay over technical cleverness.
+11. Treat visual quality as a first-class requirement, not a post-launch polish task.
+
+## Visual Quality Requirement
+
+Every future gameplay, UI, asset, and systems ticket must actively preserve or improve Fjordhold’s visual identity.
+
+The mechanics matter, but Fjordhold should not drift into generic programmer art. The finished game should move as close as practical to the approved concept sheets and `docs/STYLE_GUIDE.md` while preserving readability, scale consistency, performance, and playability.
+
+For every meaningful feature, agents should ask:
+
+- Does this make the game feel more like Fjordhold?
+- Does it support the cozy/warm/torchlit vs cold/frosty/dangerous contrast?
+- Does it improve screenshot appeal?
+- Does it preserve the chunky premium miniature-diorama style?
+- Does it avoid muddy, generic, or placeholder-looking visuals?
+
+When adding or modifying visuals, prioritize:
+
+- strong silhouettes
+- warm/cold lighting contrast
+- carved timber, iron, leather, slate, frost, ember, and rune-inspired details
+- readable top-down scale
+- cohesive UI/asset language
+- tactile feedback through glow, particles, animation, shake, and sound hooks
+
+If a feature works mechanically but weakens the visual direction, revise it before merge or document it as temporary with a clear follow-up issue.
 
 ## Non-Infringement Rules
 
@@ -131,7 +157,8 @@ Priority features:
 
 ## Asset Integration Rules
 
-- Keep assets under `public/assets`.
+- Keep runtime-ready assets under `public/assets`.
+- Keep concept/reference art under `docs/concept_art` unless it is intentionally runtime-loadable.
 - Use lowercase snake_case names.
 - Prefer consistent sizes:
   - character frames: 48x48 or 64x64
@@ -141,6 +168,7 @@ Priority features:
   - VFX frames: 64x64
 - Do not commit huge unused generated sheets without a reason.
 - If using concept sheets, also document how they will be sliced or replaced by production assets.
+- Do not accept final assets that ignore the approved style guide unless the deviation is intentional and documented.
 
 ## Testing Expectations
 
@@ -151,6 +179,7 @@ For every meaningful feature, verify:
 - the player can still move
 - UI remains usable
 - no core loop regressions
+- the feature does not visually degrade the current build
 
 When browser automation is available, test:
 
@@ -162,6 +191,7 @@ When browser automation is available, test:
 - crafting
 - raid start
 - save/load
+- at least one visual/screenshot sanity check for asset-heavy changes
 
 ## PR / Commit Style
 
