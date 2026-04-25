@@ -1,6 +1,6 @@
 {
-  "version": "1.1.0-stage2",
-  "description": "Stage 2 production building kit integration. Building kit V1 textures are enabled after validation; other packs remain opt-in.",
+  "version": "1.2.0-stage2.1",
+  "description": "Stage 2.1 production building kit integration. Building kit V1 textures remain enabled with door asset support added as opt-in.",
   "textures": [
     {
       "key": "player_viking_base",
@@ -64,6 +64,13 @@
       "url": "assets/production/buildings/pieces/build_thatch_roof_64.png",
       "enabled": true,
       "notes": "Placed for thatch roof pieces. Verified Stage 2 Building Kit V1 texture."
+    },
+    {
+      "key": "build_wood_door",
+      "type": "image",
+      "url": "assets/production/buildings/pieces/build_wood_door_64.png",
+      "enabled": false,
+      "notes": "Stage 2.1 door support entry. Enable once reviewed production door texture is present."
     }
   ]
 }

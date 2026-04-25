@@ -94,3 +94,10 @@ Enabled assets in Stage 2:
 - build_thatch_roof
 
 All five textures are 64x64 PNGs located under `public/assets/production/buildings/pieces/`.
+
+## Stage 2.1 Building Feel Additions
+
+- Build piece hotkey `6` now maps to **Wood Door**.
+- Asset index now includes an opt-in entry for `build_wood_door`:
+  - `assets/production/buildings/pieces/build_wood_door_64.png`
+  - keep `enabled: false` until a reviewed production door texture is provided.

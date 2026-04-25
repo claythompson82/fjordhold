@@ -17,6 +17,7 @@ type BuildPieceDefinition = {
 
 type BuildState = {
   buildMode: boolean;
+  deleteMode: boolean;
   selectedPiece: BuildPieceDefinition;
   buildPieces: BuildPieceDefinition[];
 };
@@ -42,7 +43,7 @@ export class UIScene extends Phaser.Scene {
   }
 
   private createHud(): void {
-    const panel = this.add.rectangle(22, 22, 540, 226, 0x111820, 0.84)
+    const panel = this.add.rectangle(22, 22, 620, 226, 0x111820, 0.84)
       .setOrigin(0, 0)
       .setScrollFactor(0)
       .setStrokeStyle(2, 0x6e4a2f, 0.95);
@@ -55,7 +56,7 @@ export class UIScene extends Phaser.Scene {
       strokeThickness: 4
     }).setScrollFactor(0);
 
-    this.add.text(panel.x + 18, panel.y + 48, 'WASD / arrows: move  •  E / click: harvest  •  B: build', {
+    this.add.text(panel.x + 18, panel.y + 48, 'WASD / arrows: move  •  E / click: harvest  •  B: build  •  X: delete mode', {
       fontFamily: 'monospace',
       fontSize: '13px',
       color: '#b7c8d6'
@@ -73,11 +74,11 @@ export class UIScene extends Phaser.Scene {
       color: '#f4d18a'
     }).setScrollFactor(0);
 
-    this.buildText = this.add.text(panel.x + 18, panel.y + 130, 'Build: press B, then 1 Floor / 2 Wall / 3 Torch / 4 Spikes / 5 Roof', {
+    this.buildText = this.add.text(panel.x + 18, panel.y + 130, 'Build: press B, then 1 Floor / 2 Wall / 3 Torch / 4 Spikes / 5 Roof / 6 Door', {
       fontFamily: 'monospace',
       fontSize: '12px',
       color: '#90aebf',
-      wordWrap: { width: 492 }
+      wordWrap: { width: 572 }
     }).setScrollFactor(0);
   }
 
@@ -88,14 +89,23 @@ export class UIScene extends Phaser.Scene {
   }
 
   private updateBuildState(state: BuildState): void {
-    this.modeText.setText(state.buildMode ? `Mode: Build — ${state.selectedPiece.label}` : 'Mode: Gather');
-    this.modeText.setColor(state.buildMode ? '#42f59b' : '#d6b16a');
+    if (state.buildMode) {
+      this.modeText.setText(state.deleteMode ? 'Mode: Build — Delete / Refund' : `Mode: Build — ${state.selectedPiece.label}`);
+      this.modeText.setColor(state.deleteMode ? '#ff9a7a' : '#42f59b');
+    } else {
+      this.modeText.setText('Mode: Gather');
+      this.modeText.setColor('#d6b16a');
+    }
 
     const pieces = state.buildPieces
       .map((piece) => `${piece.hotkey} ${piece.label} (${this.formatCost(piece.cost)})`)
       .join('  •  ');
 
-    this.buildText.setText(state.buildMode ? pieces : 'Build: press B, then 1 Floor / 2 Wall / 3 Torch / 4 Spikes / 5 Roof');
+    this.buildText.setText(
+      state.buildMode
+        ? (state.deleteMode ? 'Delete mode: click placed piece to remove and refund 70% of materials' : pieces)
+        : 'Build: press B, then 1 Floor / 2 Wall / 3 Torch / 4 Spikes / 5 Roof / 6 Door'
+    );
     this.buildText.setColor(state.buildMode ? '#f4d18a' : '#90aebf');
   }
 

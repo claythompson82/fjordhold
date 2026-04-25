@@ -9,7 +9,7 @@ const BUILD_GRID_SIZE = 64;
 
 type ResourceKind = 'tree' | 'rock' | 'ore';
 type InventoryItem = 'wood' | 'stone' | 'ironOre' | 'resin';
-type BuildPieceId = 'woodFloor' | 'woodWall' | 'standingTorch' | 'spikeWall' | 'thatchRoof';
+type BuildPieceId = 'woodFloor' | 'woodWall' | 'standingTorch' | 'spikeWall' | 'thatchRoof' | 'woodDoor';
 
 type ResourceVisual = {
   x: number;
@@ -33,8 +33,8 @@ type BuildPieceDefinition = {
   id: BuildPieceId;
   label: string;
   cost: ResourceCost;
-  category: 'floor' | 'wall' | 'light' | 'defense' | 'roof';
-  hotkey: '1' | '2' | '3' | '4' | '5';
+  category: 'floor' | 'wall' | 'light' | 'defense' | 'roof' | 'door';
+  hotkey: '1' | '2' | '3' | '4' | '5' | '6';
 };
 
 type PlacedBuildPiece = {
@@ -59,6 +59,8 @@ type InputKeys = {
   THREE: Phaser.Input.Keyboard.Key;
   FOUR: Phaser.Input.Keyboard.Key;
   FIVE: Phaser.Input.Keyboard.Key;
+  SIX: Phaser.Input.Keyboard.Key;
+  X: Phaser.Input.Keyboard.Key;
 };
 
 const RESOURCE_DEFINITIONS: Record<ResourceKind, { health: number; item: InventoryItem; label: string }> = {
@@ -71,37 +73,44 @@ const BUILD_PIECES: Record<BuildPieceId, BuildPieceDefinition> = {
   woodFloor: {
     id: 'woodFloor',
     label: 'Wood Floor',
-    cost: { wood: 2 },
+    cost: { wood: 1 },
     category: 'floor',
     hotkey: '1'
   },
   woodWall: {
     id: 'woodWall',
     label: 'Wood Wall',
-    cost: { wood: 4 },
+    cost: { wood: 3 },
     category: 'wall',
     hotkey: '2'
   },
   standingTorch: {
     id: 'standingTorch',
     label: 'Standing Torch',
-    cost: { wood: 2, resin: 1 },
+    cost: { wood: 1, resin: 1 },
     category: 'light',
     hotkey: '3'
   },
   spikeWall: {
     id: 'spikeWall',
     label: 'Spike Wall',
-    cost: { wood: 5, stone: 1 },
+    cost: { wood: 4, stone: 1 },
     category: 'defense',
     hotkey: '4'
   },
   thatchRoof: {
     id: 'thatchRoof',
     label: 'Thatch Roof',
-    cost: { wood: 6 },
+    cost: { wood: 4 },
     category: 'roof',
     hotkey: '5'
+  },
+  woodDoor: {
+    id: 'woodDoor',
+    label: 'Wood Door',
+    cost: { wood: 2 },
+    category: 'door',
+    hotkey: '6'
   }
 };
 
@@ -116,7 +125,8 @@ const BUILD_TEXTURE_KEYS: Record<BuildPieceId, string> = {
   woodWall: 'build_wood_wall',
   standingTorch: 'build_standing_torch',
   spikeWall: 'build_spike_wall',
-  thatchRoof: 'build_thatch_roof'
+  thatchRoof: 'build_thatch_roof',
+  woodDoor: 'build_wood_door'
 };
 
 export class WorldScene extends Phaser.Scene {
@@ -125,14 +135,15 @@ export class WorldScene extends Phaser.Scene {
   private keys!: InputKeys;
   private resourceNodes: ResourceNode[] = [];
   private inventory: InventoryCounts = {
-    wood: 0,
-    stone: 0,
+    wood: 8,
+    stone: 4,
     ironOre: 0,
-    resin: 0
+    resin: 2
   };
   private interactionHint!: Phaser.GameObjects.Text;
   private buildMode = false;
   private selectedBuildPiece: BuildPieceId = 'woodFloor';
+  private deleteMode = false;
   private buildGhost!: Phaser.GameObjects.Container;
   private buildGhostLabel!: Phaser.GameObjects.Text;
   private buildGhostPulse?: Phaser.GameObjects.Arc;
@@ -156,7 +167,7 @@ export class WorldScene extends Phaser.Scene {
     this.cameras.main.setZoom(1.15);
 
     this.cursors = this.input.keyboard!.createCursorKeys();
-    this.keys = this.input.keyboard!.addKeys('W,A,S,D,E,B,ESC,ONE,TWO,THREE,FOUR,FIVE') as InputKeys;
+    this.keys = this.input.keyboard!.addKeys('W,A,S,D,E,B,X,ESC,ONE,TWO,THREE,FOUR,FIVE,SIX') as InputKeys;
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => this.handlePointerDown(pointer));
     this.emitInventoryChanged();
@@ -346,12 +357,20 @@ export class WorldScene extends Phaser.Scene {
   private updateBuildInput(): void {
     if (Phaser.Input.Keyboard.JustDown(this.keys.B)) {
       this.buildMode = !this.buildMode;
+      this.deleteMode = false;
       this.showFloatingText(this.player.x, this.player.y - 72, this.buildMode ? 'Build mode' : 'Gather mode', this.buildMode ? '#42f59b' : '#b7c8d6');
       this.emitBuildChanged();
     }
 
     if (Phaser.Input.Keyboard.JustDown(this.keys.ESC) && this.buildMode) {
       this.buildMode = false;
+      this.deleteMode = false;
+      this.emitBuildChanged();
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.keys.X) && this.buildMode) {
+      this.deleteMode = !this.deleteMode;
+      this.showFloatingText(this.player.x, this.player.y - 72, this.deleteMode ? 'Delete mode' : 'Place mode', this.deleteMode ? '#ff7f60' : '#42f59b');
       this.emitBuildChanged();
     }
 
@@ -360,10 +379,12 @@ export class WorldScene extends Phaser.Scene {
     if (Phaser.Input.Keyboard.JustDown(this.keys.THREE)) this.selectBuildPiece('standingTorch');
     if (Phaser.Input.Keyboard.JustDown(this.keys.FOUR)) this.selectBuildPiece('spikeWall');
     if (Phaser.Input.Keyboard.JustDown(this.keys.FIVE)) this.selectBuildPiece('thatchRoof');
+    if (Phaser.Input.Keyboard.JustDown(this.keys.SIX)) this.selectBuildPiece('woodDoor');
   }
 
   private selectBuildPiece(pieceId: BuildPieceId): void {
     this.selectedBuildPiece = pieceId;
+    this.deleteMode = false;
     this.emitBuildChanged();
 
     if (this.buildMode) {
@@ -381,7 +402,11 @@ export class WorldScene extends Phaser.Scene {
     }
 
     if (this.buildMode) {
-      this.placeSelectedBuildPiece();
+      if (this.deleteMode) {
+        this.deleteBuildPieceAtPointer();
+      } else {
+        this.placeSelectedBuildPiece();
+      }
       return;
     }
 
@@ -397,10 +422,10 @@ export class WorldScene extends Phaser.Scene {
     }
 
     node.health -= 1;
-    const amount = node.kind === 'ore' ? 1 : Phaser.Math.Between(1, 2);
+    const amount = node.kind === 'ore' ? Phaser.Math.Between(1, 2) : Phaser.Math.Between(2, 3);
     this.inventory[node.item] += amount;
 
-    if (node.kind === 'tree' && Phaser.Math.Between(1, 5) === 1) {
+    if (node.kind === 'tree' && Phaser.Math.Between(1, 4) === 1) {
       this.inventory.resin += 1;
       this.showFloatingText(node.x + 16, node.y - 62, '+1 resin', '#ffd37d');
     }
@@ -488,6 +513,13 @@ export class WorldScene extends Phaser.Scene {
         container.add(this.add.line(0, 0, -32, 14, 32, 14, 0xd0a15a, 0.65).setLineWidth(2));
         container.add(this.add.line(0, 0, -24, 24, 24, 24, 0x5a3821, 0.7).setLineWidth(2));
         break;
+      case 'woodDoor':
+        container.add(this.add.ellipse(0, 20, 56, 16, 0x071018, 0.24));
+        container.add(this.add.rectangle(0, 4, 34, 50, 0x71482d, 1).setStrokeStyle(3, 0x2b1a11));
+        container.add(this.add.line(0, 0, -11, -10, -11, 19, 0x9b6a40, 0.9).setLineWidth(2));
+        container.add(this.add.line(0, 0, 1, -10, 1, 19, 0x9b6a40, 0.85).setLineWidth(2));
+        container.add(this.add.circle(10, 4, 3, 0xd7b37a, 1));
+        break;
     }
 
     return container;
@@ -508,13 +540,20 @@ export class WorldScene extends Phaser.Scene {
 
     const snapped = this.getSnappedPointerPosition();
     const piece = BUILD_PIECES[this.selectedBuildPiece];
-    const validation = this.validateBuildPlacement(snapped.x, snapped.y, piece);
-    const color = validation.valid ? 0x42f59b : 0xff543f;
+    const validation = this.deleteMode
+      ? this.validateDeletePlacement(snapped.x, snapped.y)
+      : this.validateBuildPlacement(snapped.x, snapped.y, piece);
+    const color = this.deleteMode ? 0xff7f60 : (validation.valid ? 0x42f59b : 0xff543f);
 
     this.buildGhost.destroy();
     this.buildGhost = this.add.container(snapped.x, snapped.y).setDepth(200);
     this.buildGhost.add(this.add.rectangle(0, 0, BUILD_GRID_SIZE, BUILD_GRID_SIZE, color, 0.16).setStrokeStyle(3, color, 0.9));
-    this.buildGhost.add(this.createBuildPieceVisual(piece.id, 0, 0, true).setDepth(201));
+    if (this.deleteMode) {
+      this.buildGhost.add(this.add.line(0, 0, -20, -20, 20, 20, 0xff7f60, 0.95).setLineWidth(5));
+      this.buildGhost.add(this.add.line(0, 0, 20, -20, -20, 20, 0xff7f60, 0.95).setLineWidth(5));
+    } else {
+      this.buildGhost.add(this.createBuildPieceVisual(piece.id, 0, 0, true).setDepth(201));
+    }
     this.buildGhostPulse?.destroy();
     this.buildGhostPulse = this.add.circle(0, 0, 28, color, validation.valid ? 0.16 : 0.12)
       .setStrokeStyle(2, color, 0.45)
@@ -523,7 +562,9 @@ export class WorldScene extends Phaser.Scene {
     this.buildGhost.setVisible(true);
 
     this.buildGhostLabel
-      .setText(`${piece.hotkey}: ${piece.label} • ${this.formatCost(piece.cost)}`)
+      .setText(this.deleteMode
+        ? `X: Delete mode • click placed piece to refund`
+        : `${piece.hotkey}: ${piece.label} • ${this.formatCost(piece.cost)}`)
       .setPosition(snapped.x, snapped.y - 52)
       .setVisible(true);
 
@@ -585,6 +626,15 @@ export class WorldScene extends Phaser.Scene {
     return { valid: true, reason: 'OK' };
   }
 
+  private validateDeletePlacement(x: number, y: number): { valid: boolean; reason: string } {
+    const placedPiece = this.findPlacedPieceAt(x, y);
+    if (!placedPiece) {
+      return { valid: false, reason: 'Nothing to remove' };
+    }
+
+    return { valid: true, reason: 'Remove piece' };
+  }
+
   private canAfford(cost: ResourceCost): boolean {
     return Object.entries(cost).every(([item, amount]) => this.inventory[item as InventoryItem] >= (amount ?? 0));
   }
@@ -593,6 +643,52 @@ export class WorldScene extends Phaser.Scene {
     Object.entries(cost).forEach(([item, amount]) => {
       this.inventory[item as InventoryItem] -= amount ?? 0;
     });
+  }
+
+  private refundResources(cost: ResourceCost): void {
+    Object.entries(cost).forEach(([item, amount]) => {
+      const spendAmount = amount ?? 0;
+      if (spendAmount <= 0) {
+        return;
+      }
+
+      const refundAmount = Math.max(1, Math.floor(spendAmount * 0.7));
+      this.inventory[item as InventoryItem] += refundAmount;
+    });
+  }
+
+  private deleteBuildPieceAtPointer(): void {
+    const snapped = this.getSnappedPointerPosition();
+    const placedPiece = this.findPlacedPieceAt(snapped.x, snapped.y);
+
+    if (!placedPiece) {
+      this.showFloatingText(snapped.x, snapped.y - 46, 'Nothing to remove', '#ff7f60');
+      this.cameras.main.shake(70, 0.001);
+      return;
+    }
+
+    const pieceDefinition = BUILD_PIECES[placedPiece.pieceId];
+    this.refundResources(pieceDefinition.cost);
+    this.emitInventoryChanged();
+
+    this.placedPieces = this.placedPieces.filter((piece) => piece.id !== placedPiece.id);
+    this.showFloatingText(snapped.x, snapped.y - 46, `${pieceDefinition.label} removed (+refund)`, '#f4d18a');
+
+    this.tweens.add({
+      targets: placedPiece.container,
+      alpha: 0,
+      scaleX: 0.65,
+      scaleY: 0.65,
+      duration: 150,
+      ease: 'Quad.easeIn',
+      onComplete: () => placedPiece.container.destroy()
+    });
+
+    this.cameras.main.shake(60, 0.0011);
+  }
+
+  private findPlacedPieceAt(x: number, y: number): PlacedBuildPiece | undefined {
+    return this.placedPieces.find((placed) => placed.gridX === x && placed.gridY === y);
   }
 
   private findNearestResource(): ResourceNode | undefined {
@@ -689,6 +785,7 @@ export class WorldScene extends Phaser.Scene {
   private emitBuildChanged(): void {
     this.game.events.emit('build:changed', {
       buildMode: this.buildMode,
+      deleteMode: this.deleteMode,
       selectedPiece: BUILD_PIECES[this.selectedBuildPiece],
       buildPieces: Object.values(BUILD_PIECES)
     });
