@@ -42,7 +42,7 @@ export class UIScene extends Phaser.Scene {
   }
 
   private createHud(): void {
-    const panel = this.add.rectangle(22, 22, 500, 214, 0x111820, 0.84)
+    const panel = this.add.rectangle(22, 22, 540, 226, 0x111820, 0.84)
       .setOrigin(0, 0)
       .setScrollFactor(0)
       .setStrokeStyle(2, 0x6e4a2f, 0.95);
@@ -73,11 +73,11 @@ export class UIScene extends Phaser.Scene {
       color: '#f4d18a'
     }).setScrollFactor(0);
 
-    this.buildText = this.add.text(panel.x + 18, panel.y + 130, 'Build: press B, then 1 Floor / 2 Wall / 3 Torch / 4 Spikes', {
+    this.buildText = this.add.text(panel.x + 18, panel.y + 130, 'Build: press B, then 1 Floor / 2 Wall / 3 Torch / 4 Spikes / 5 Roof', {
       fontFamily: 'monospace',
       fontSize: '12px',
       color: '#90aebf',
-      wordWrap: { width: 452 }
+      wordWrap: { width: 492 }
     }).setScrollFactor(0);
   }
 
@@ -95,7 +95,7 @@ export class UIScene extends Phaser.Scene {
       .map((piece) => `${piece.hotkey} ${piece.label} (${this.formatCost(piece.cost)})`)
       .join('  •  ');
 
-    this.buildText.setText(state.buildMode ? pieces : 'Build: press B, then 1 Floor / 2 Wall / 3 Torch / 4 Spikes');
+    this.buildText.setText(state.buildMode ? pieces : 'Build: press B, then 1 Floor / 2 Wall / 3 Torch / 4 Spikes / 5 Roof');
     this.buildText.setColor(state.buildMode ? '#f4d18a' : '#90aebf');
   }
 
