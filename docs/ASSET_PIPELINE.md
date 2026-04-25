@@ -81,3 +81,16 @@ World rendering checks whether a texture exists before using it.
 - If not: current procedural placeholder visuals remain active.
 
 This protects movement, gathering, inventory, build mode, roof placement, and roof fade while assets are still being produced.
+
+
+## Stage 2 Building Kit V1 Coverage
+
+Enabled assets in Stage 2:
+
+- build_wood_floor
+- build_wood_wall
+- build_standing_torch
+- build_spike_wall
+- build_thatch_roof
+
+All five textures are 64x64 PNGs located under `public/assets/production/buildings/pieces/`.

@@ -1,6 +1,6 @@
 {
-  "version": "1.0.0-stage1",
-  "description": "Stage 1 asset pipeline index. Toggle `enabled` to true after dropping verified production assets into matching paths.",
+  "version": "1.1.0-stage2",
+  "description": "Stage 2 production building kit integration. Building kit V1 textures are enabled after validation; other packs remain opt-in.",
   "textures": [
     {
       "key": "player_viking_base",
@@ -34,36 +34,36 @@
       "key": "build_wood_floor",
       "type": "image",
       "url": "assets/production/buildings/pieces/build_wood_floor_64.png",
-      "enabled": false,
-      "notes": "Placed for wood floor pieces."
+      "enabled": true,
+      "notes": "Placed for wood floor pieces. Verified Stage 2 Building Kit V1 texture."
     },
     {
       "key": "build_wood_wall",
       "type": "image",
       "url": "assets/production/buildings/pieces/build_wood_wall_64.png",
-      "enabled": false,
-      "notes": "Placed for wood wall pieces."
+      "enabled": true,
+      "notes": "Placed for wood wall pieces. Verified Stage 2 Building Kit V1 texture."
     },
     {
       "key": "build_standing_torch",
       "type": "image",
       "url": "assets/production/buildings/pieces/build_standing_torch_64.png",
-      "enabled": false,
-      "notes": "Placed for standing torch pieces."
+      "enabled": true,
+      "notes": "Placed for standing torch pieces. Verified Stage 2 Building Kit V1 texture."
     },
     {
       "key": "build_spike_wall",
       "type": "image",
       "url": "assets/production/buildings/pieces/build_spike_wall_64.png",
-      "enabled": false,
-      "notes": "Placed for spike wall pieces."
+      "enabled": true,
+      "notes": "Placed for spike wall pieces. Verified Stage 2 Building Kit V1 texture."
     },
     {
       "key": "build_thatch_roof",
       "type": "image",
       "url": "assets/production/buildings/pieces/build_thatch_roof_64.png",
-      "enabled": false,
-      "notes": "Placed for thatch roof pieces."
+      "enabled": true,
+      "notes": "Placed for thatch roof pieces. Verified Stage 2 Building Kit V1 texture."
     }
   ]
 }
