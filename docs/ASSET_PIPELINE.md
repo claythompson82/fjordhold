@@ -11,18 +11,14 @@ This document defines the **Stage 1** ingest pipeline for concept mockups and Pr
 
 ## Folder Structure
 
-### Concept mockups (reference-only)
+### Concept mockups (reference-only, non-runtime)
 
 Store concept sheets and visual direction boards here:
 
 ```text
-public/assets/concepts/
-  direction/
-  characters/
-  buildings/
-  enemies/
-  ui_items/
-  environment/
+docs/concept_art/
+  raw/
+  exports/
 ```
 
 Rules:
@@ -70,7 +66,7 @@ Each entry includes:
 
 ## Integration Flow
 
-1. Place or update concept references in `public/assets/concepts/*`.
+1. Place or update concept references in `docs/concept_art/raw/*` and curated slices in `docs/concept_art/exports/*`.
 2. Create cleaned production PNG files in `public/assets/production/*`.
 3. Add/update matching entries in `asset_pack_v1_index.json`.
 4. Flip `enabled` from `false` to `true` for verified files.

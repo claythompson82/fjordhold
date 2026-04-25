@@ -27,12 +27,8 @@ Examples:
 
 Generated concept sheets should be stored in-repo under:
 
-- `public/assets/concepts/direction/`
-- `public/assets/concepts/characters/`
-- `public/assets/concepts/buildings/`
-- `public/assets/concepts/enemies/`
-- `public/assets/concepts/ui_items/`
-- `public/assets/concepts/environment/`
+- `docs/concept_art/raw/`
+- `docs/concept_art/exports/`
 
 Use these as visual direction only until production assets are prepared.
 

@@ -104,13 +104,6 @@ src/
       UIScene.ts
 public/
   assets/
-    concepts/
-      direction/
-      characters/
-      buildings/
-      enemies/
-      ui_items/
-      environment/
     production/
       characters/
       enemies/
@@ -127,6 +120,9 @@ public/
     ui/
     vfx/
 docs/
+  concept_art/
+    raw/
+    exports/
   ASSET_PIPELINE.md
 ```
 
