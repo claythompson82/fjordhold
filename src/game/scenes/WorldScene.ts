@@ -8,7 +8,7 @@ const BUILD_GRID_SIZE = 64;
 
 type ResourceKind = 'tree' | 'rock' | 'ore';
 type InventoryItem = 'wood' | 'stone' | 'ironOre' | 'resin';
-type BuildPieceId = 'woodFloor' | 'woodWall' | 'standingTorch' | 'spikeWall';
+type BuildPieceId = 'woodFloor' | 'woodWall' | 'standingTorch' | 'spikeWall' | 'thatchRoof';
 
 type ResourceVisual = {
   x: number;
@@ -32,8 +32,8 @@ type BuildPieceDefinition = {
   id: BuildPieceId;
   label: string;
   cost: ResourceCost;
-  category: 'floor' | 'wall' | 'light' | 'defense';
-  hotkey: '1' | '2' | '3' | '4';
+  category: 'floor' | 'wall' | 'light' | 'defense' | 'roof';
+  hotkey: '1' | '2' | '3' | '4' | '5';
 };
 
 type PlacedBuildPiece = {
@@ -56,6 +56,7 @@ type InputKeys = {
   TWO: Phaser.Input.Keyboard.Key;
   THREE: Phaser.Input.Keyboard.Key;
   FOUR: Phaser.Input.Keyboard.Key;
+  FIVE: Phaser.Input.Keyboard.Key;
 };
 
 const RESOURCE_DEFINITIONS: Record<ResourceKind, { health: number; item: InventoryItem; label: string }> = {
@@ -92,6 +93,13 @@ const BUILD_PIECES: Record<BuildPieceId, BuildPieceDefinition> = {
     cost: { wood: 5, stone: 1 },
     category: 'defense',
     hotkey: '4'
+  },
+  thatchRoof: {
+    id: 'thatchRoof',
+    label: 'Thatch Roof',
+    cost: { wood: 6 },
+    category: 'roof',
+    hotkey: '5'
   }
 };
 
@@ -131,7 +139,7 @@ export class WorldScene extends Phaser.Scene {
     this.cameras.main.setZoom(1.15);
 
     this.cursors = this.input.keyboard!.createCursorKeys();
-    this.keys = this.input.keyboard!.addKeys('W,A,S,D,E,B,ESC,ONE,TWO,THREE,FOUR') as InputKeys;
+    this.keys = this.input.keyboard!.addKeys('W,A,S,D,E,B,ESC,ONE,TWO,THREE,FOUR,FIVE') as InputKeys;
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => this.handlePointerDown(pointer));
     this.emitInventoryChanged();
@@ -148,6 +156,7 @@ export class WorldScene extends Phaser.Scene {
 
     this.updateInteractionHint();
     this.updateBuildGhost();
+    this.updateInteriorReveal();
   }
 
   private createFrostpineWorld(): void {
@@ -323,6 +332,7 @@ export class WorldScene extends Phaser.Scene {
     if (Phaser.Input.Keyboard.JustDown(this.keys.TWO)) this.selectBuildPiece('woodWall');
     if (Phaser.Input.Keyboard.JustDown(this.keys.THREE)) this.selectBuildPiece('standingTorch');
     if (Phaser.Input.Keyboard.JustDown(this.keys.FOUR)) this.selectBuildPiece('spikeWall');
+    if (Phaser.Input.Keyboard.JustDown(this.keys.FIVE)) this.selectBuildPiece('thatchRoof');
   }
 
   private selectBuildPiece(pieceId: BuildPieceId): void {
@@ -405,7 +415,7 @@ export class WorldScene extends Phaser.Scene {
 
   private createBuildPieceVisual(pieceId: BuildPieceId, x: number, y: number, ghost: boolean): Phaser.GameObjects.Container {
     const alpha = ghost ? 0.45 : 1;
-    const container = this.add.container(x, y).setDepth(pieceId === 'woodFloor' ? 4 : y + 10).setAlpha(alpha);
+    const container = this.add.container(x, y).setDepth(this.getBuildPieceDepth(pieceId, y)).setAlpha(alpha);
 
     switch (pieceId) {
       case 'woodFloor':
@@ -435,9 +445,24 @@ export class WorldScene extends Phaser.Scene {
         }
         container.add(this.add.rectangle(0, 14, 62, 9, 0x4b2e1c, 1));
         break;
+      case 'thatchRoof':
+        container.add(this.add.ellipse(0, 24, 76, 18, 0x071018, 0.28));
+        container.add(this.add.polygon(0, -4, [-42, 18, 0, -36, 42, 18, 28, 34, -28, 34], 0x8b5d32, 1).setStrokeStyle(3, 0x2d1c13));
+        container.add(this.add.polygon(0, -4, [-30, 16, 0, -26, 30, 16, 18, 26, -18, 26], 0xb68648, 0.85));
+        container.add(this.add.rectangle(0, -22, 56, 7, 0x5a3821, 1).setRotation(-0.72));
+        container.add(this.add.rectangle(0, -22, 56, 7, 0x5a3821, 1).setRotation(0.72));
+        container.add(this.add.line(0, 0, -32, 14, 32, 14, 0xd0a15a, 0.65).setLineWidth(2));
+        container.add(this.add.line(0, 0, -24, 24, 24, 24, 0x5a3821, 0.7).setLineWidth(2));
+        break;
     }
 
     return container;
+  }
+
+  private getBuildPieceDepth(pieceId: BuildPieceId, y: number): number {
+    if (pieceId === 'woodFloor') return 4;
+    if (pieceId === 'thatchRoof') return y + 220;
+    return y + 10;
   }
 
   private updateBuildGhost(): void {
@@ -462,6 +487,16 @@ export class WorldScene extends Phaser.Scene {
       .setText(`${piece.hotkey}: ${piece.label} • ${this.formatCost(piece.cost)}`)
       .setPosition(snapped.x, snapped.y - 52)
       .setVisible(true);
+  }
+
+  private updateInteriorReveal(): void {
+    const roofs = this.placedPieces.filter((piece) => piece.pieceId === 'thatchRoof');
+    const insideRoof = roofs.some((roof) => Phaser.Math.Distance.Between(this.player.x, this.player.y, roof.gridX, roof.gridY) < 78);
+
+    roofs.forEach((roof) => {
+      const targetAlpha = insideRoof ? 0.18 : 1;
+      roof.container.setAlpha(Phaser.Math.Linear(roof.container.alpha, targetAlpha, 0.16));
+    });
   }
 
   private getSnappedPointerPosition(): { x: number; y: number } {
