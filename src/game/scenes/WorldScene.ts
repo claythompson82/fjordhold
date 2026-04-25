@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { hasTexture } from '../assets/productionAssetPipeline';
 
 const WORLD_WIDTH = 2400;
 const WORLD_HEIGHT = 1600;
@@ -101,6 +102,20 @@ const BUILD_PIECES: Record<BuildPieceId, BuildPieceDefinition> = {
     category: 'roof',
     hotkey: '5'
   }
+};
+
+const RESOURCE_TEXTURE_KEYS: Record<ResourceKind, string> = {
+  tree: 'resource_pine_tree',
+  rock: 'resource_stone_boulder',
+  ore: 'resource_iron_ore'
+};
+
+const BUILD_TEXTURE_KEYS: Record<BuildPieceId, string> = {
+  woodFloor: 'build_wood_floor',
+  woodWall: 'build_wood_wall',
+  standingTorch: 'build_standing_torch',
+  spikeWall: 'build_spike_wall',
+  thatchRoof: 'build_thatch_roof'
 };
 
 export class WorldScene extends Phaser.Scene {
@@ -206,8 +221,11 @@ export class WorldScene extends Phaser.Scene {
   private createResource(resource: ResourceVisual, index: number): void {
     const container = this.add.container(resource.x, resource.y).setDepth(resource.y);
     const definition = RESOURCE_DEFINITIONS[resource.kind];
+    const textureKey = RESOURCE_TEXTURE_KEYS[resource.kind];
 
-    if (resource.kind === 'tree') {
+    if (hasTexture(this, textureKey)) {
+      container.add(this.add.image(0, 0, textureKey).setDisplaySize(64, 64).setOrigin(0.5, 0.84));
+    } else if (resource.kind === 'tree') {
       container.add(this.add.ellipse(0, 26, 52, 20, 0x071018, 0.26));
       container.add(this.add.triangle(0, -24, 0, 58, 34, 0, 68, 58, 0x203f35));
       container.add(this.add.triangle(0, 4, 0, 64, 40, 0, 80, 64, 0x2b5b49));
@@ -257,6 +275,13 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private createPlayer(x: number, y: number): Phaser.GameObjects.Container {
+    if (hasTexture(this, 'player_viking_base')) {
+      const sprite = this.add.image(0, 0, 'player_viking_base').setDisplaySize(64, 64).setOrigin(0.5, 0.74);
+      const container = this.add.container(x, y, [sprite]);
+      container.setDepth(20);
+      return container;
+    }
+
     const bodyShadow = this.add.ellipse(0, 20, 42, 18, 0x02070a, 0.35);
     const cloak = this.add.circle(0, 6, 23, 0x33485a, 1);
     const tunic = this.add.rectangle(0, 10, 28, 36, 0x7a5134, 1).setStrokeStyle(2, 0x241711);
@@ -416,6 +441,12 @@ export class WorldScene extends Phaser.Scene {
   private createBuildPieceVisual(pieceId: BuildPieceId, x: number, y: number, ghost: boolean): Phaser.GameObjects.Container {
     const alpha = ghost ? 0.45 : 1;
     const container = this.add.container(x, y).setDepth(this.getBuildPieceDepth(pieceId, y)).setAlpha(alpha);
+    const textureKey = BUILD_TEXTURE_KEYS[pieceId];
+
+    if (hasTexture(this, textureKey)) {
+      container.add(this.add.image(0, 0, textureKey).setDisplaySize(64, 64));
+      return container;
+    }
 
     switch (pieceId) {
       case 'woodFloor':

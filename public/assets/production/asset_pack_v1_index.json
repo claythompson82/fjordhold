@@ -1,0 +1,69 @@
+{
+  "version": "1.0.0-stage1",
+  "description": "Stage 1 asset pipeline index. Toggle `enabled` to true after dropping verified production assets into matching paths.",
+  "textures": [
+    {
+      "key": "player_viking_base",
+      "type": "image",
+      "url": "assets/production/characters/player/player_viking_base_64.png",
+      "enabled": false,
+      "notes": "Single-frame fallback-ready player art. Keep transparent background."
+    },
+    {
+      "key": "resource_pine_tree",
+      "type": "image",
+      "url": "assets/production/resources/nodes/resource_pine_tree_64.png",
+      "enabled": false,
+      "notes": "Pine tree node visual used by tree harvest nodes."
+    },
+    {
+      "key": "resource_stone_boulder",
+      "type": "image",
+      "url": "assets/production/resources/nodes/resource_stone_boulder_64.png",
+      "enabled": false,
+      "notes": "Stone boulder node visual used by rock harvest nodes."
+    },
+    {
+      "key": "resource_iron_ore",
+      "type": "image",
+      "url": "assets/production/resources/nodes/resource_iron_ore_64.png",
+      "enabled": false,
+      "notes": "Iron ore node visual used by ore harvest nodes."
+    },
+    {
+      "key": "build_wood_floor",
+      "type": "image",
+      "url": "assets/production/buildings/pieces/build_wood_floor_64.png",
+      "enabled": false,
+      "notes": "Placed for wood floor pieces."
+    },
+    {
+      "key": "build_wood_wall",
+      "type": "image",
+      "url": "assets/production/buildings/pieces/build_wood_wall_64.png",
+      "enabled": false,
+      "notes": "Placed for wood wall pieces."
+    },
+    {
+      "key": "build_standing_torch",
+      "type": "image",
+      "url": "assets/production/buildings/pieces/build_standing_torch_64.png",
+      "enabled": false,
+      "notes": "Placed for standing torch pieces."
+    },
+    {
+      "key": "build_spike_wall",
+      "type": "image",
+      "url": "assets/production/buildings/pieces/build_spike_wall_64.png",
+      "enabled": false,
+      "notes": "Placed for spike wall pieces."
+    },
+    {
+      "key": "build_thatch_roof",
+      "type": "image",
+      "url": "assets/production/buildings/pieces/build_thatch_roof_64.png",
+      "enabled": false,
+      "notes": "Placed for thatch roof pieces."
+    }
+  ]
+}

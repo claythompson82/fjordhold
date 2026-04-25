@@ -37,6 +37,7 @@ The current build includes:
 - camera follow
 - initial HUD
 - placeholder asset folders
+- stage-1 production asset pipeline wiring with procedural fallbacks
 
 Planned first public release:
 
@@ -103,6 +104,15 @@ src/
       UIScene.ts
 public/
   assets/
+    production/
+      characters/
+      enemies/
+      terrain/
+      resources/
+      buildings/
+      ui/
+      vfx/
+      audio/
     characters/
     terrain/
     buildings/
@@ -110,6 +120,10 @@ public/
     ui/
     vfx/
 docs/
+  concept_art/
+    raw/
+    exports/
+  ASSET_PIPELINE.md
 ```
 
 ## Licensing

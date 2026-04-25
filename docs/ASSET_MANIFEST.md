@@ -25,7 +25,12 @@ Examples:
 
 ## Current Concept References
 
-Generated concept sheets exist outside the repo and should be used as visual direction only until production assets are prepared.
+Generated concept sheets should be stored in-repo under:
+
+- `docs/concept_art/raw/`
+- `docs/concept_art/exports/`
+
+Use these as visual direction only until production assets are prepared.
 
 Concept categories:
 
@@ -34,6 +39,13 @@ Concept categories:
 - building kit direction
 - draugr enemy direction
 - UI and item direction
+
+## Runtime Integration Rules (Stage 1)
+
+- Production runtime files live under `public/assets/production/*`.
+- Load eligibility is controlled by `public/assets/production/asset_pack_v1_index.json`.
+- Entries remain `enabled: false` until files are present and validated.
+- Gameplay must keep procedural fallback visuals for any missing/disabled assets.
 
 ## Production Asset Pack V1
 
