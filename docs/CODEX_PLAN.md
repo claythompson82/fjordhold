@@ -212,6 +212,8 @@ Acceptance:
 
 Deliver:
 
+- concept ingest folder structure
+- production asset pipeline index + loading contract
 - cleaned production assets loaded
 - animations wired
 - UI art applied

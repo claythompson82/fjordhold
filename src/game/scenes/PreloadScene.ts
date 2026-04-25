@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { PRODUCTION_ASSET_INDEX_KEY, queueEnabledProductionAssets } from '../assets/productionAssetPipeline';
 
 export class PreloadScene extends Phaser.Scene {
   constructor() {
@@ -7,6 +8,11 @@ export class PreloadScene extends Phaser.Scene {
 
   preload(): void {
     const { width, height } = this.scale;
+
+    this.load.json(PRODUCTION_ASSET_INDEX_KEY, 'assets/production/asset_pack_v1_index.json');
+    this.load.once(`filecomplete-json-${PRODUCTION_ASSET_INDEX_KEY}`, () => {
+      queueEnabledProductionAssets(this);
+    });
 
     this.add.text(width / 2, height / 2 - 24, 'FJORDHOLD', {
       fontFamily: 'serif',
