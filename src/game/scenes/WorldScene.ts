@@ -6,6 +6,8 @@ const WORLD_HEIGHT = 1600;
 const PLAYER_SPEED = 220;
 const HARVEST_RANGE = 105;
 const BUILD_GRID_SIZE = 64;
+const SAVE_STORAGE_KEY = 'fjordhold_stage3_save';
+const RESET_CONFIRM_WINDOW_MS = 3000;
 
 type ResourceKind = 'tree' | 'rock' | 'ore';
 type InventoryItem = 'wood' | 'stone' | 'ironOre' | 'resin';
@@ -46,6 +48,19 @@ type PlacedBuildPiece = {
   flame?: Phaser.GameObjects.Triangle;
 };
 
+type SavedPlacedPiece = {
+  pieceId: BuildPieceId;
+  gridX: number;
+  gridY: number;
+};
+
+type SaveData = {
+  version: 1;
+  inventory: InventoryCounts;
+  placedPieces: SavedPlacedPiece[];
+  savedAt: string;
+};
+
 type InputKeys = {
   W: Phaser.Input.Keyboard.Key;
   A: Phaser.Input.Keyboard.Key;
@@ -61,6 +76,10 @@ type InputKeys = {
   FIVE: Phaser.Input.Keyboard.Key;
   SIX: Phaser.Input.Keyboard.Key;
   X: Phaser.Input.Keyboard.Key;
+  H: Phaser.Input.Keyboard.Key;
+  J: Phaser.Input.Keyboard.Key;
+  K: Phaser.Input.Keyboard.Key;
+  R: Phaser.Input.Keyboard.Key;
 };
 
 const RESOURCE_DEFINITIONS: Record<ResourceKind, { health: number; item: InventoryItem; label: string }> = {
@@ -129,17 +148,19 @@ const BUILD_TEXTURE_KEYS: Record<BuildPieceId, string> = {
   woodDoor: 'build_wood_door'
 };
 
+const DEFAULT_INVENTORY: InventoryCounts = {
+  wood: 8,
+  stone: 4,
+  ironOre: 0,
+  resin: 2
+};
+
 export class WorldScene extends Phaser.Scene {
   private player!: Phaser.GameObjects.Container;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private keys!: InputKeys;
   private resourceNodes: ResourceNode[] = [];
-  private inventory: InventoryCounts = {
-    wood: 8,
-    stone: 4,
-    ironOre: 0,
-    resin: 2
-  };
+  private inventory: InventoryCounts = { ...DEFAULT_INVENTORY };
   private interactionHint!: Phaser.GameObjects.Text;
   private buildMode = false;
   private selectedBuildPiece: BuildPieceId = 'woodFloor';
@@ -148,6 +169,8 @@ export class WorldScene extends Phaser.Scene {
   private buildGhostLabel!: Phaser.GameObjects.Text;
   private buildGhostPulse?: Phaser.GameObjects.Arc;
   private placedPieces: PlacedBuildPiece[] = [];
+  private hudVisible = true;
+  private resetArmedUntil = 0;
 
   constructor() {
     super('WorldScene');
@@ -167,16 +190,19 @@ export class WorldScene extends Phaser.Scene {
     this.cameras.main.setZoom(1.15);
 
     this.cursors = this.input.keyboard!.createCursorKeys();
-    this.keys = this.input.keyboard!.addKeys('W,A,S,D,E,B,X,ESC,ONE,TWO,THREE,FOUR,FIVE,SIX') as InputKeys;
+    this.keys = this.input.keyboard!.addKeys('W,A,S,D,E,B,X,H,J,K,R,ESC,ONE,TWO,THREE,FOUR,FIVE,SIX') as InputKeys;
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => this.handlePointerDown(pointer));
+    this.loadGame(false);
     this.emitInventoryChanged();
     this.emitBuildChanged();
+    this.emitHudVisibilityChanged();
   }
 
   update(_: number, delta: number): void {
     this.updatePlayerMovement(delta);
     this.updateBuildInput();
+    this.updateMetaInput();
 
     if (Phaser.Input.Keyboard.JustDown(this.keys.E) && !this.buildMode) {
       this.harvestNearestResource();
@@ -432,6 +458,7 @@ export class WorldScene extends Phaser.Scene {
 
     this.emitInventoryChanged();
     this.showHarvestFeedback(node, amount);
+    this.saveGame(false);
 
     if (node.health <= 0) {
       this.destroyResource(node);
@@ -464,6 +491,7 @@ export class WorldScene extends Phaser.Scene {
     this.emitInventoryChanged();
     this.showFloatingText(snapped.x, snapped.y - 48, `${piece.label} placed`, '#42f59b');
     this.cameras.main.flash(85, 244, 209, 138, false);
+    this.saveGame(false);
   }
 
   private createBuildPieceVisual(pieceId: BuildPieceId, x: number, y: number, ghost: boolean): Phaser.GameObjects.Container {
@@ -685,6 +713,7 @@ export class WorldScene extends Phaser.Scene {
     });
 
     this.cameras.main.shake(60, 0.0011);
+    this.saveGame(false);
   }
 
   private findPlacedPieceAt(x: number, y: number): PlacedBuildPiece | undefined {
@@ -791,6 +820,14 @@ export class WorldScene extends Phaser.Scene {
     });
   }
 
+  private emitHudVisibilityChanged(): void {
+    this.game.events.emit('hud:visibility-changed', this.hudVisible);
+  }
+
+  private showHudFeedback(message: string, color = '#f4d18a'): void {
+    this.game.events.emit('hud:feedback', { message, color });
+  }
+
   private showFloatingText(x: number, y: number, message: string, color: string): void {
     const text = this.add.text(x, y, message, {
       fontFamily: 'monospace',
@@ -857,5 +894,119 @@ export class WorldScene extends Phaser.Scene {
     }
 
     this.cameras.main.shake(75, 0.0012);
+  }
+
+  private updateMetaInput(): void {
+    if (Phaser.Input.Keyboard.JustDown(this.keys.J)) {
+      this.saveGame(true);
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.keys.K)) {
+      this.loadGame(true);
+      this.emitInventoryChanged();
+      this.emitBuildChanged();
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.keys.H)) {
+      this.hudVisible = !this.hudVisible;
+      this.emitHudVisibilityChanged();
+      this.showHudFeedback(this.hudVisible ? 'HUD shown' : 'HUD hidden for screenshot', '#8bd3ff');
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.keys.R)) {
+      if (this.time.now < this.resetArmedUntil) {
+        this.resetSave();
+        this.resetArmedUntil = 0;
+      } else {
+        this.resetArmedUntil = this.time.now + RESET_CONFIRM_WINDOW_MS;
+        this.showHudFeedback('Press R again in 3s to reset save', '#ff9a7a');
+      }
+    }
+  }
+
+  private saveGame(manual: boolean): void {
+    const saveData: SaveData = {
+      version: 1,
+      inventory: { ...this.inventory },
+      placedPieces: this.placedPieces.map((piece) => ({
+        pieceId: piece.pieceId,
+        gridX: piece.gridX,
+        gridY: piece.gridY
+      })),
+      savedAt: new Date().toISOString()
+    };
+
+    try {
+      window.localStorage.setItem(SAVE_STORAGE_KEY, JSON.stringify(saveData));
+      if (manual) {
+        this.showHudFeedback('Game saved', '#42f59b');
+      }
+    } catch {
+      this.showHudFeedback('Save failed (storage unavailable)', '#ff7f60');
+    }
+  }
+
+  private loadGame(manual: boolean): void {
+    const rawSave = window.localStorage.getItem(SAVE_STORAGE_KEY);
+    if (!rawSave) {
+      if (manual) {
+        this.showHudFeedback('No save found', '#ff9a7a');
+      }
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(rawSave) as SaveData;
+      if (parsed.version !== 1) {
+        this.showHudFeedback('Save version mismatch', '#ff7f60');
+        return;
+      }
+
+      this.inventory = {
+        wood: Math.max(0, parsed.inventory.wood ?? 0),
+        stone: Math.max(0, parsed.inventory.stone ?? 0),
+        ironOre: Math.max(0, parsed.inventory.ironOre ?? 0),
+        resin: Math.max(0, parsed.inventory.resin ?? 0)
+      };
+      this.restorePlacedPieces(parsed.placedPieces);
+
+      if (manual) {
+        this.showHudFeedback('Game loaded', '#8bd3ff');
+      }
+    } catch {
+      this.showHudFeedback('Load failed (corrupt save)', '#ff7f60');
+    }
+  }
+
+  private restorePlacedPieces(savedPieces: SavedPlacedPiece[]): void {
+    this.placedPieces.forEach((piece) => piece.container.destroy());
+    this.placedPieces = [];
+
+    savedPieces.forEach((savedPiece, index) => {
+      const container = this.createBuildPieceVisual(savedPiece.pieceId, savedPiece.gridX, savedPiece.gridY, false);
+      const placedPiece: PlacedBuildPiece = {
+        id: `${savedPiece.pieceId}_${savedPiece.gridX}_${savedPiece.gridY}_${index}`,
+        pieceId: savedPiece.pieceId,
+        gridX: savedPiece.gridX,
+        gridY: savedPiece.gridY,
+        container
+      };
+
+      const flame = placedPiece.container.getByName('torch_flame') as Phaser.GameObjects.Triangle | null;
+      if (flame) {
+        placedPiece.flame = flame;
+      }
+
+      this.placedPieces.push(placedPiece);
+    });
+  }
+
+  private resetSave(): void {
+    window.localStorage.removeItem(SAVE_STORAGE_KEY);
+    this.inventory = { ...DEFAULT_INVENTORY };
+    this.restorePlacedPieces([]);
+    this.showHudFeedback('Save reset', '#ff9a7a');
+    this.emitInventoryChanged();
+    this.emitBuildChanged();
   }
 }
