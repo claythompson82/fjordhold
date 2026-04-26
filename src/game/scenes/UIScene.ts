@@ -23,9 +23,11 @@ type BuildState = {
 };
 
 export class UIScene extends Phaser.Scene {
+  private hudContainer!: Phaser.GameObjects.Container;
   private inventoryText!: Phaser.GameObjects.Text;
   private modeText!: Phaser.GameObjects.Text;
   private buildText!: Phaser.GameObjects.Text;
+  private feedbackText!: Phaser.GameObjects.Text;
 
   constructor() {
     super('UIScene');
@@ -35,10 +37,14 @@ export class UIScene extends Phaser.Scene {
     this.createHud();
     this.game.events.on('inventory:changed', this.updateInventory, this);
     this.game.events.on('build:changed', this.updateBuildState, this);
+    this.game.events.on('hud:visibility-changed', this.updateHudVisibility, this);
+    this.game.events.on('hud:feedback', this.showFeedback, this);
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.game.events.off('inventory:changed', this.updateInventory, this);
       this.game.events.off('build:changed', this.updateBuildState, this);
+      this.game.events.off('hud:visibility-changed', this.updateHudVisibility, this);
+      this.game.events.off('hud:feedback', this.showFeedback, this);
     });
   }
 
@@ -48,7 +54,7 @@ export class UIScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setStrokeStyle(2, 0x6e4a2f, 0.95);
 
-    this.add.text(panel.x + 18, panel.y + 14, 'FJORDHOLD', {
+    const titleText = this.add.text(panel.x + 18, panel.y + 14, 'FJORDHOLD', {
       fontFamily: 'serif',
       fontSize: '22px',
       color: '#f4d18a',
@@ -56,7 +62,7 @@ export class UIScene extends Phaser.Scene {
       strokeThickness: 4
     }).setScrollFactor(0);
 
-    this.add.text(panel.x + 18, panel.y + 48, 'WASD / arrows: move  •  E / click: harvest  •  B: build  •  X: delete mode', {
+    const controlsText = this.add.text(panel.x + 18, panel.y + 48, 'WASD / arrows: move  •  E / click: harvest  •  B: build  •  X: delete mode', {
       fontFamily: 'monospace',
       fontSize: '13px',
       color: '#b7c8d6'
@@ -80,6 +86,29 @@ export class UIScene extends Phaser.Scene {
       color: '#90aebf',
       wordWrap: { width: 572 }
     }).setScrollFactor(0);
+
+    const utilityText = this.add.text(panel.x + 18, panel.y + 168, 'J: save  •  K: load  •  R: reset save (double-press)  •  H: hide HUD', {
+      fontFamily: 'monospace',
+      fontSize: '12px',
+      color: '#8ba4b6'
+    }).setScrollFactor(0);
+
+    this.feedbackText = this.add.text(panel.x + 18, panel.y + 194, '', {
+      fontFamily: 'monospace',
+      fontSize: '12px',
+      color: '#8bd3ff'
+    }).setScrollFactor(0);
+
+    this.hudContainer = this.add.container(0, 0, [
+      panel,
+      titleText,
+      controlsText,
+      this.modeText,
+      this.inventoryText,
+      this.buildText,
+      utilityText,
+      this.feedbackText
+    ]);
   }
 
   private updateInventory(inventory: InventoryCounts): void {
@@ -118,5 +147,23 @@ export class UIScene extends Phaser.Scene {
   private formatItemName(item: string): string {
     if (item === 'ironOre') return 'iron';
     return item;
+  }
+
+  private updateHudVisibility(visible: boolean): void {
+    this.hudContainer.setVisible(visible);
+  }
+
+  private showFeedback(payload: { message: string; color: string }): void {
+    this.feedbackText.setText(payload.message);
+    this.feedbackText.setColor(payload.color);
+
+    this.tweens.killTweensOf(this.feedbackText);
+    this.feedbackText.setAlpha(1);
+    this.tweens.add({
+      targets: this.feedbackText,
+      alpha: 0.65,
+      duration: 1600,
+      ease: 'Quad.easeOut'
+    });
   }
 }
